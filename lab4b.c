@@ -12,9 +12,67 @@
 const int B = 4275;               // B value of the thermistor
 const int R0 = 100000;            // R0 = 100k
 
+// Flags
+int opt_period = 1, opt_log = 0;
+char opt_scale;
+int logfd;
+
+
+void check_period(){
+    if(!isdigit(opt_period) || opt_period < 0){
+        fprintf(stderr, "Invalid option argument for period. Please use an integer greater than 0 or default value of 1 second\n");
+        exit(1);
+    }
+}
+
+void check_scale(){
+    if(opt_scale != 'F' && opt_scale != 'C'){
+        fprintf(stderr, "Invalid option argument for scale. Please use C for Celsius or F for Fahrenheit\n");
+        exit(1);
+    }
+}
+
+void check_logfd(){
+    if(logfd < 0){
+        fprintf(stderr, "Error creating logfile descriptor\n");
+        exit(1);
+    }
+}
 
 int main(int argc, char *argv[]){
     
+    // Default values
+    int opt = 0;
+
+    struct option longopts[] = {
+        {"period",  required_argument,  NULL, 'p'},
+        {"scale",   required_argument,  NULL, 's'},
+        {"log",     no_argument,        NULL, 'l'},
+        {0,0,0,0}
+    };
+
+    while((opt = getopt_long(argc, argv, "p:s:l", longopts, NULL)) != -1){
+        switch(opt){
+            case 'p':
+                opt_period = atoi(optarg);
+                check_period();
+                break;
+            case 's':
+                opt_scale = *optarg;
+                check_scale();
+                break;
+            case 'l':
+                opt_log = 1;
+                logfd =  creat(optarg, 0600);
+                check_logfd();
+            default:
+                fprintf(stderr, "Invalid Arguments. Usage: ./lab4b --period=time_in_secs --scale=[FP] --log=filename\n");
+                exit(1);
+                break;
+        }
+    }
+
+
     // Initialize grove
     mraa_aio_context pinTempSensor = mraa_aio_init(0);     // Grove - Temperature Sensor connect to A0
     mraa_gpio_context btn = mraa_gpio_init(3);             // Grove - Button connect to D3
