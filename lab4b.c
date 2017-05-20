@@ -16,6 +16,7 @@ const int R0 = 100000;            // R0 = 100k
 int opt_period = 1, opt_log = 0;
 char opt_scale;
 int logfd;
+FILE* logfile;
 
 
 void check_period(){
@@ -32,9 +33,9 @@ void check_scale(){
     }
 }
 
-void check_logfd(){
-    if(logfd < 0){
-        fprintf(stderr, "Error creating logfile descriptor\n");
+void check_logfile(){
+    if(logfile == NULL){
+        fprintf(stderr, "Error creating or opening\n");
         exit(1);
     }
 }
@@ -47,11 +48,11 @@ int main(int argc, char *argv[]){
     struct option longopts[] = {
         {"period",  required_argument,  NULL, 'p'},
         {"scale",   required_argument,  NULL, 's'},
-        {"log",     no_argument,        NULL, 'l'},
+        {"log",     required_argument,  NULL, 'l'},
         {0,0,0,0}
     };
 
-    while((opt = getopt_long(argc, argv, "p:s:l", longopts, NULL)) != -1){
+    while((opt = getopt_long(argc, argv, "p:s:l:", longopts, NULL)) != -1){
         switch(opt){
             case 'p':
                 opt_period = atoi(optarg);
@@ -63,8 +64,9 @@ int main(int argc, char *argv[]){
                 break;
             case 'l':
                 opt_log = 1;
-                logfd =  creat(optarg, 0600);
-                check_logfd();
+                logfile =  fopen(optarg, "w");
+                check_logfile();
+                break;
             default:
                 fprintf(stderr, "Invalid Arguments. Usage: ./lab4b --period=time_in_secs --scale=[FP] --log=filename\n");
                 exit(1);
@@ -94,7 +96,23 @@ int main(int argc, char *argv[]){
         double celsius = 1.0/(log(R/R0)/B+1/298.15)-273.15; // convert to celsius temperature via datasheet
         double fahrenheit = celsius * 9/5 + 32;
 
-        fprintf(stdout, "%.1f\n", fahrenheit);
+        // Write to stdout
+        if(opt_scale == 'C')    
+            fprintf(stdout, "%.1f\n", celsius);
+        else
+            fprintf(stdout, "%.1f\n", fahrenheit);
+
+        // Write to logfile
+        if(opt_log){
+
+            if(opt_scale == 'C')
+                fprintf(logfile, "%.1f\n", celsius);
+            else
+                fprintf(logfile, "%.1f\n", fahrenheit);
+
+            // Flush to make sure it prints to logfile
+            fflush(logfile);
+        }
 
         sleep(1);
     }
