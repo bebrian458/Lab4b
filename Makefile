@@ -3,7 +3,7 @@
 # ID: 	204612203
 
 CC = gcc
-LFLAGS = -lmraa -lm
+LFLAGS = -lmraa -lm -lpthread
 DEBUG =
 
 default: lab4b
