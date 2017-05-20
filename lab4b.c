@@ -9,21 +9,23 @@
 #include <mraa/aio.h>   //temp sensor
 #include <mraa/gpio.h>  //btn
 #include <pthread.h>
+#include <ctype.h>
 
 const int B = 4275;               // B value of the thermistor
 const int R0 = 100000;            // R0 = 100k
 
 // Flags
 int opt_period = 1, opt_log = 0;
-char opt_scale;
+char opt_scale = 'F';
 int logfd;
 FILE* logfile;
 mraa_gpio_context btn;
 
 
-void check_period(){
-    if(!isdigit(opt_period) || opt_period < 0){
+void check_period(char *optarg){
+    if(!isdigit(*optarg) || opt_period < 0){
         fprintf(stderr, "Invalid option argument for period. Please use an integer greater than 0 or default value of 1 second\n");
+        fprintf(stderr, "%d\n", opt_period);
         exit(1);
     }
 }
@@ -76,8 +78,9 @@ int main(int argc, char *argv[]){
     while((opt = getopt_long(argc, argv, "p:s:l:", longopts, NULL)) != -1){
         switch(opt){
             case 'p':
+
                 opt_period = atoi(optarg);
-                check_period();
+                check_period(optarg);
                 break;
             case 's':
                 opt_scale = *optarg;
@@ -135,7 +138,7 @@ int main(int argc, char *argv[]){
             fflush(logfile);
         }
 
-        sleep(10);
+        sleep(opt_period);
     }
 
     mraa_aio_close(pinTempSensor);
