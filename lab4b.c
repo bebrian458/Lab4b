@@ -20,7 +20,7 @@ const int TIME_DISP_SIZE = 9;		// HH:MM:SS\0
 const int SIZE_BUFFER = 1024;
 
 // Flags and default values
-int opt_period = 1, opt_log = 0, cmd_off = 0;
+int opt_period = 1, opt_log = 0, cmd_off = 0, cmd_report = 1;
 char opt_scale = 'F';
 
 // Used to create/open logfile
@@ -104,26 +104,40 @@ void* check_cmd(){
 			int input_index = 0;
 			ssize_t bytes_read = read(0, input_buffer, SIZE_BUFFER);
 
-/*
-			if(strcmp(input_buffer, "OFF\n") == 0){
-				fprintf(stdout, "%s SHUTDOWN\n", time_disp);
-				exit(0);
-			}
-			else
-				fprintf(stderr, "%s\n", input_buffer);
-*/
-
 			// Read the buffer one byte at a time
 			while(bytes_read > 0 && input_index < bytes_read){
 
-				// Check for \r and \n to process cmd buffer
+				// Check for \r and \n of input_buffer to process cmd buffer
 				if(input_buffer[input_index] == '\n'){
 
 					// Process cmd_buffer
 					if(strcmp(cmd_buffer, "OFF") == 0){
-						 if(opt_log)
+						if(opt_log)
 						 	fprintf(logfile, "%s\n", cmd_buffer);
 						cmd_off = 1;
+					}
+					else if(strcmp(cmd_buffer, "STOP") == 0){
+						if(opt_log)
+						 	fprintf(logfile, "%s\n", cmd_buffer);
+						cmd_report = 0;
+					}
+					else if(strcmp(cmd_buffer, "START") == 0){
+						if(opt_log)
+						 	fprintf(logfile, "%s\n", cmd_buffer);
+						cmd_report = 1;
+					}
+					else if(strcmp(cmd_buffer, "SCALE=F") == 0){
+						if(opt_log)
+						 	fprintf(logfile, "%s\n", cmd_buffer);
+						 opt_scale = 'F';
+					}
+					else if(strcmp(cmd_buffer, "SCALE=C") == 0){
+						if(opt_log)
+						 	fprintf(logfile, "%s\n", cmd_buffer);
+						opt_scale = 'C';
+					}
+					else if(strcmp(cmd_buffer, "PERIOD=") == 0){
+						// TODO
 					}
 					else{
 						fprintf(stderr, "%s: not a valid command\n", cmd_buffer);
@@ -131,7 +145,8 @@ void* check_cmd(){
 							fprintf(logfile, "%s\n", cmd_buffer);
 					}
 
-					// Reset cmd_buffer and index
+					// Reset cmd_buffer's and index
+					memset(cmd_buffer, 0, SIZE_BUFFER);
 					cmd_index = 0;					
 				}
 
@@ -141,7 +156,6 @@ void* check_cmd(){
 				}
 				input_index++;
 			}
-			
 		}
 	}
 
@@ -229,25 +243,28 @@ int main(int argc, char *argv[]){
         double celsius = 1.0/(log(R/R0)/B+1/298.15)-273.15; // convert to celsius temperature via datasheet
         double fahrenheit = celsius * 9/5 + 32;
 
+        // START and STOP commands can toggle this
+	    if(cmd_report){    
 
-        // Generate report to stdout
-        if(opt_scale == 'C'){  
-            fprintf(stdout, "%s %.1f\n", time_disp, celsius);
-        }
-        else
-            fprintf(stdout, "%s %.1f\n", time_disp, fahrenheit);
+	    	// Generate report to stdout
+	        if(opt_scale == 'C'){  
+	            fprintf(stdout, "%s %.1f\n", time_disp, celsius);
+	        }
+	        else
+	            fprintf(stdout, "%s %.1f\n", time_disp, fahrenheit);
 
-        // Generate report to logfile 
-        if(opt_log){
+	        // Generate report to logfile 
+	        if(opt_log){
 
-            if(opt_scale == 'C')
-                fprintf(logfile, "%s %.1f\n", time_disp, celsius);
-            else
-                fprintf(logfile, "%s %.1f\n", time_disp, fahrenheit);
+	            if(opt_scale == 'C')
+	                fprintf(logfile, "%s %.1f\n", time_disp, celsius);
+	            else
+	                fprintf(logfile, "%s %.1f\n", time_disp, fahrenheit);
 
-            // Flush to make sure it prints to logfile
-            fflush(logfile);
-        }
+	            // Flush to make sure it prints to logfile
+	            fflush(logfile);
+	        }
+	    }
 
         sleep(opt_period);
     }
