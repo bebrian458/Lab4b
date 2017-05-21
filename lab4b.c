@@ -10,16 +10,18 @@
 #include <mraa/gpio.h>  //btn
 #include <pthread.h>
 #include <ctype.h>
+#include <time.h>
 
-const int B = 4275;               // B value of the thermistor
-const int R0 = 100000;            // R0 = 100k
+const int B = 4275;               	// B value of the thermistor
+const int R0 = 100000;            	// R0 = 100k
+const int TIME_DISP_SIZE = 9;		// HH:MM:SS\0
 
-// Flags
+// Flags and default values
 int opt_period = 1, opt_log = 0;
 char opt_scale = 'F';
-int logfd;
+
+// Used to create/open logfile
 FILE* logfile;
-mraa_gpio_context btn;
 
 
 void check_period(char *optarg){
@@ -46,13 +48,12 @@ void check_logfile(){
 
 void* check_btn(){
 
-    // Initialize grove - button
-    btn = mraa_gpio_init(3);             // Grove - Button connect to D3
+    // Initialize Grove - Button connect to D3
+    mraa_gpio_context btn = mraa_gpio_init(3);       
     mraa_gpio_dir(btn,1);
     
+    // Constantly check for button
     while(1){
-
-        // Check for button
         if(mraa_gpio_read(btn)){
             fprintf(stderr, "SHUTDOWN\n");
             exit(0);
@@ -99,8 +100,8 @@ int main(int argc, char *argv[]){
     }
 
 
-    // Initialize grove - temp sensor
-    mraa_aio_context pinTempSensor = mraa_aio_init(0);     // Grove - Temperature Sensor connect to A0
+    // Initialize Grove - Temperature Sensor connect to A0
+    mraa_aio_context pinTempSensor = mraa_aio_init(0);
 
     // Create thread to check button, avoiding problem of sleeping while button is pressed
     pthread_t btn_thread;
@@ -108,6 +109,15 @@ int main(int argc, char *argv[]){
         fprintf(stderr, "Error creating thread for button\n");
         exit(1);
     }
+
+    // Timer variables
+    time_t timer;
+    struct tm* converted_time_info;
+    char time_disp[TIME_DISP_SIZE];
+
+    // Set time to local time
+    setenv("TZ", "PST8PDT", 1);
+    tzset();
 
     // Main thread reads temperature and time
     while(1){
@@ -120,19 +130,25 @@ int main(int argc, char *argv[]){
         double celsius = 1.0/(log(R/R0)/B+1/298.15)-273.15; // convert to celsius temperature via datasheet
         double fahrenheit = celsius * 9/5 + 32;
 
-        // Write to stdout
-        if(opt_scale == 'C')    
-            fprintf(stdout, "%.1f\n", celsius);
-        else
-            fprintf(stdout, "%.1f\n", fahrenheit);
+        // Read time
+        time(&timer);
+        converted_time_info = localtime(&timer);
+        strftime(time_disp, TIME_DISP_SIZE, "%H:%M:%S", converted_time_info);
 
-        // Write to logfile 
+        // Generate report to stdout
+        if(opt_scale == 'C'){  
+            fprintf(stdout, "%s %.1f\n", time_disp, celsius);
+        }
+        else
+            fprintf(stdout, "%s %.1f\n", time_disp, fahrenheit);
+
+        // Generate report to logfile 
         if(opt_log){
 
             if(opt_scale == 'C')
-                fprintf(logfile, "%.1f\n", celsius);
+                fprintf(logfile, "%s %.1f\n", time_disp, celsius);
             else
-                fprintf(logfile, "%.1f\n", fahrenheit);
+                fprintf(logfile, "%s %.1f\n", time_disp, fahrenheit);
 
             // Flush to make sure it prints to logfile
             fflush(logfile);
