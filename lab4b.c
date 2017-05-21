@@ -23,6 +23,11 @@ char opt_scale = 'F';
 // Used to create/open logfile
 FILE* logfile;
 
+// Timer variables
+time_t timer;
+struct tm* converted_time_info;
+char *time_disp;
+
 
 void check_period(char *optarg){
     if(!isdigit(*optarg) || opt_period < 0){
@@ -51,11 +56,17 @@ void* check_btn(){
     // Initialize Grove - Button connect to D3
     mraa_gpio_context btn = mraa_gpio_init(3);       
     mraa_gpio_dir(btn,1);
-    
-    // Constantly check for button
+
     while(1){
+
+        // Constantly read time
+	    time(&timer);
+	    converted_time_info = localtime(&timer);
+	    strftime(time_disp, TIME_DISP_SIZE, "%H:%M:%S", converted_time_info);
+
+		// Constantly check for button
         if(mraa_gpio_read(btn)){
-            fprintf(stderr, "SHUTDOWN\n");
+            fprintf(stdout, "%s SHUTDOWN\n", time_disp);
             exit(0);
         }
     }
@@ -103,23 +114,25 @@ int main(int argc, char *argv[]){
     // Initialize Grove - Temperature Sensor connect to A0
     mraa_aio_context pinTempSensor = mraa_aio_init(0);
 
+    // Set time to local time
+    setenv("TZ", "PST8PDT", 1);
+    tzset();
+
+    // Read time first in case parent executes display before child thread updates time
+    time_disp = malloc(sizeof(char) * TIME_DISP_SIZE);
+    time(&timer);
+    converted_time_info = localtime(&timer);
+    strftime(time_disp, TIME_DISP_SIZE, "%H:%M:%S", converted_time_info);
+
     // Create thread to check button, avoiding problem of sleeping while button is pressed
+    // Will also update time to timestamp SHUTDOWN message, even while ain thread is sleeping
     pthread_t btn_thread;
     if(pthread_create(&btn_thread, NULL, check_btn, NULL) < 0){
         fprintf(stderr, "Error creating thread for button\n");
         exit(1);
     }
 
-    // Timer variables
-    time_t timer;
-    struct tm* converted_time_info;
-    char time_disp[TIME_DISP_SIZE];
-
-    // Set time to local time
-    setenv("TZ", "PST8PDT", 1);
-    tzset();
-
-    // Main thread reads temperature and time
+    // Main thread reads temperature
     while(1){
 
         // Read Temperature
@@ -130,10 +143,6 @@ int main(int argc, char *argv[]){
         double celsius = 1.0/(log(R/R0)/B+1/298.15)-273.15; // convert to celsius temperature via datasheet
         double fahrenheit = celsius * 9/5 + 32;
 
-        // Read time
-        time(&timer);
-        converted_time_info = localtime(&timer);
-        strftime(time_disp, TIME_DISP_SIZE, "%H:%M:%S", converted_time_info);
 
         // Generate report to stdout
         if(opt_scale == 'C'){  
