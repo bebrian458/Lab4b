@@ -19,7 +19,7 @@ const int R0 = 100000;            	// R0 = 100k
 const int TIME_DISP_SIZE = 9;		// HH:MM:SS\0
 const int SIZE_BUFFER = 1024;
 
-// Flags and default values
+// Flags and their default values
 int opt_period = 1, opt_log = 0, cmd_off = 0, cmd_report = 1;
 char opt_scale = 'F';
 
@@ -137,7 +137,11 @@ void* check_cmd(){
 						opt_scale = 'C';
 					}
 					else if(strcmp(cmd_buffer, "PERIOD=") == 0){
-						// TODO
+						// TODO: Figure out a way to log this comand
+						// TODO: check that the first 7 char are PERIOD=
+						// TODO: check that the 8th character to \0 isdigit
+						// TODO: update opt_period
+						// NOTE: May need to combine this check with default case
 					}
 					else{
 						fprintf(stderr, "%s: not a valid command\n", cmd_buffer);
@@ -150,10 +154,13 @@ void* check_cmd(){
 					cmd_index = 0;					
 				}
 
-				else{// Copy input_buffer into cmd_buffer
+				// Copy input_buffer into cmd_buffer
+				else{
 					cmd_buffer[cmd_index] = input_buffer[input_index];
 					cmd_index++;
 				}
+
+				// Continue processing the next character in input_buffer
 				input_index++;
 			}
 		}
