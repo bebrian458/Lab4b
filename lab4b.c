@@ -58,7 +58,7 @@ void* check_btn(){
 
     // Initialize Grove - Button connect to D3
     mraa_gpio_context btn = mraa_gpio_init(3);       
-    mraa_gpio_dir(btn,1);
+    mraa_gpio_dir(btn, 1);
 
     while(1){
 
@@ -70,6 +70,7 @@ void* check_btn(){
 		// Constantly check for button or OFF command
         if(mraa_gpio_read(btn) || cmd_off){
             fprintf(stdout, "%s SHUTDOWN\n", time_disp);
+            mraa_gpio_close(btn);
             exit(0);
         }
     }
@@ -85,6 +86,7 @@ void* check_cmd(){
 	fds[0].events = 0;
 	fds[0].events = POLLIN | POLLHUP | POLLERR;
 
+	// Initialize command buffer and its index
 	char *cmd_buffer = malloc(sizeof(char)*SIZE_BUFFER);
 	memset(cmd_buffer, 0, SIZE_BUFFER);
 	int cmd_index = 0;
@@ -100,6 +102,7 @@ void* check_cmd(){
 
 		if(fds[0].revents & POLLIN){
 
+			// Initialize input buffer and its index
 			char input_buffer[SIZE_BUFFER];
 			int input_index = 0;
 			ssize_t bytes_read = read(0, input_buffer, SIZE_BUFFER);
@@ -149,7 +152,7 @@ void* check_cmd(){
 							fprintf(logfile, "%s\n", cmd_buffer);
 					}
 
-					// Reset cmd_buffer's and index
+					// Reset cmd_buffer and its index
 					memset(cmd_buffer, 0, SIZE_BUFFER);
 					cmd_index = 0;					
 				}
@@ -185,7 +188,6 @@ int main(int argc, char *argv[]){
     while((opt = getopt_long(argc, argv, "p:s:l:", longopts, NULL)) != -1){
         switch(opt){
             case 'p':
-
                 opt_period = atoi(optarg);
                 check_period(optarg);
                 break;
@@ -233,6 +235,7 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 
+    // Create thread to check for stdin commands even while main thread is sleeping
     pthread_t cmd_thread;
     if(pthread_create(&cmd_thread, NULL, check_cmd, NULL) < 0){
         fprintf(stderr, "Error creating thread for commands\n");
@@ -250,7 +253,7 @@ int main(int argc, char *argv[]){
         double celsius = 1.0/(log(R/R0)/B+1/298.15)-273.15; // convert to celsius temperature via datasheet
         double fahrenheit = celsius * 9/5 + 32;
 
-        // START and STOP commands can toggle this
+        // START and STOP commands toggle report generation
 	    if(cmd_report){    
 
 	    	// Generate report to stdout
@@ -277,5 +280,5 @@ int main(int argc, char *argv[]){
     }
 
     mraa_aio_close(pinTempSensor);
-
+    return 0;
 }
