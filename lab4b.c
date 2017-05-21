@@ -11,13 +11,16 @@
 #include <pthread.h>
 #include <ctype.h>
 #include <time.h>
+#include <poll.h>
+#include <string.h>
 
 const int B = 4275;               	// B value of the thermistor
 const int R0 = 100000;            	// R0 = 100k
 const int TIME_DISP_SIZE = 9;		// HH:MM:SS\0
+const int SIZE_BUFFER = 1024;
 
 // Flags and default values
-int opt_period = 1, opt_log = 0;
+int opt_period = 1, opt_log = 0, cmd_off = 0;
 char opt_scale = 'F';
 
 // Used to create/open logfile
@@ -64,14 +67,85 @@ void* check_btn(){
 	    converted_time_info = localtime(&timer);
 	    strftime(time_disp, TIME_DISP_SIZE, "%H:%M:%S", converted_time_info);
 
-		// Constantly check for button
-        if(mraa_gpio_read(btn)){
+		// Constantly check for button or OFF command
+        if(mraa_gpio_read(btn) || cmd_off){
             fprintf(stdout, "%s SHUTDOWN\n", time_disp);
             exit(0);
         }
     }
 
     return NULL;
+}
+
+void* check_cmd(){
+
+	// Initialize poll for STDIN
+	struct pollfd fds[1];
+	fds[0].fd = 0;
+	fds[0].events = 0;
+	fds[0].events = POLLIN | POLLHUP | POLLERR;
+
+	char *cmd_buffer = malloc(sizeof(char)*SIZE_BUFFER);
+	memset(cmd_buffer, 0, SIZE_BUFFER);
+	int cmd_index = 0;
+
+	while(1){
+
+		// Check poll status
+		int poll_ret = poll(fds,1,0);
+		if(poll_ret < 0){
+			fprintf(stderr, "Error while polling\n");
+			exit(1);
+		}
+
+		if(fds[0].revents & POLLIN){
+
+			char input_buffer[SIZE_BUFFER];
+			int input_index = 0;
+			ssize_t bytes_read = read(0, input_buffer, SIZE_BUFFER);
+
+/*
+			if(strcmp(input_buffer, "OFF\n") == 0){
+				fprintf(stdout, "%s SHUTDOWN\n", time_disp);
+				exit(0);
+			}
+			else
+				fprintf(stderr, "%s\n", input_buffer);
+*/
+
+			// Read the buffer one byte at a time
+			while(bytes_read > 0 && input_index < bytes_read){
+
+				// Check for \r and \n to process cmd buffer
+				if(input_buffer[input_index] == '\n'){
+
+					// Process cmd_buffer
+					if(strcmp(cmd_buffer, "OFF") == 0){
+						 if(opt_log)
+						 	fprintf(logfile, "%s\n", cmd_buffer);
+						cmd_off = 1;
+					}
+					else{
+						fprintf(stderr, "%s: not a valid command\n", cmd_buffer);
+						if(opt_log)
+							fprintf(logfile, "%s\n", cmd_buffer);
+					}
+
+					// Reset cmd_buffer and index
+					cmd_index = 0;					
+				}
+
+				else{// Copy input_buffer into cmd_buffer
+					cmd_buffer[cmd_index] = input_buffer[input_index];
+					cmd_index++;
+				}
+				input_index++;
+			}
+			
+		}
+	}
+
+	return NULL;
 }
 
 
@@ -114,12 +188,18 @@ int main(int argc, char *argv[]){
     // Initialize Grove - Temperature Sensor connect to A0
     mraa_aio_context pinTempSensor = mraa_aio_init(0);
 
+    // Allocate memory for time display
+    time_disp = malloc(sizeof(char) * TIME_DISP_SIZE);
+    if(time_disp == NULL){
+    	fprintf(stderr, "Error allocating memory for time display\n");
+    	exit(1);
+    }
+
     // Set time to local time
     setenv("TZ", "PST8PDT", 1);
     tzset();
 
     // Read time first in case parent executes display before child thread updates time
-    time_disp = malloc(sizeof(char) * TIME_DISP_SIZE);
     time(&timer);
     converted_time_info = localtime(&timer);
     strftime(time_disp, TIME_DISP_SIZE, "%H:%M:%S", converted_time_info);
@@ -129,6 +209,12 @@ int main(int argc, char *argv[]){
     pthread_t btn_thread;
     if(pthread_create(&btn_thread, NULL, check_btn, NULL) < 0){
         fprintf(stderr, "Error creating thread for button\n");
+        exit(1);
+    }
+
+    pthread_t cmd_thread;
+    if(pthread_create(&cmd_thread, NULL, check_cmd, NULL) < 0){
+        fprintf(stderr, "Error creating thread for commands\n");
         exit(1);
     }
 
