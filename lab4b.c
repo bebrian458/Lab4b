@@ -110,6 +110,7 @@ void* check_cmd(){
 			// Initialize input buffer and its index
 			char input_buffer[SIZE_BUFFER];
 			int input_index = 0;
+
 			ssize_t bytes_read = read(0, input_buffer, SIZE_BUFFER);
 
 			// Read the buffer one byte at a time
@@ -190,6 +191,7 @@ void* check_cmd(){
 							fprintf(stderr, "%s: not a valid command\n", cmd_buffer);
 							if(opt_log)
 								fprintf(logfile, "%s\n", cmd_buffer);
+							cmd_off = 1;
 						}
 					}
 
