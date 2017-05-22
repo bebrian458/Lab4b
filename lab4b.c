@@ -1,6 +1,6 @@
 // NAME:    Brian Be
 // EMAIL:   bebrian458@gmail.com
-// ID:  204612203
+// ID:  	204612203
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,7 +71,7 @@ void* check_btn(){
         if(mraa_gpio_read(btn) || cmd_off){
         	if(opt_log)
         		fprintf(logfile, "%s SHUTDOWN\n", time_disp);
-            fprintf(stdout, "%s SHUTDOWN\n", time_disp);
+            //fprintf(stdout, "%s SHUTDOWN\n", time_disp);
             mraa_gpio_close(btn);
             exit(0);
         }
@@ -188,10 +188,10 @@ void* check_cmd(){
 						}
 						// Otherwise print default case error
 						else{
-							fprintf(stderr, "%s: not a valid command\n", cmd_buffer);
+							//fprintf(stderr, "%s: not a valid command\n", cmd_buffer);
 							if(opt_log)
-								fprintf(logfile, "%s\n", cmd_buffer);
-							cmd_off = 1;
+								fprintf(logfile, "%s: not a valid command\n", cmd_buffer);
+							exit(1);
 						}
 					}
 
