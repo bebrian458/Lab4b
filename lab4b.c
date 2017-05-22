@@ -153,20 +153,44 @@ void* check_cmd(){
 						 	fprintf(logfile, "%s\n", cmd_buffer);
 						opt_scale = 'C';
 					}
-					else if(strcmp(cmd_buffer, "PERIOD=1") == 0){
-						// TODO: Figure out a way to log this comand
-						// TODO: check that the first 7 char are PERIOD=
-						// TODO: check that the 8th character to \0 isdigit
-						// TODO: update opt_period
-						// NOTE: May need to combine this check with default case
-						opt_period = 1;
-						if(opt_log)
-							fprintf(logfile, "%s\n", cmd_buffer);
-					}
 					else{
-						fprintf(stderr, "%s: not a valid command\n", cmd_buffer);
-						if(opt_log)
-							fprintf(logfile, "%s\n", cmd_buffer);
+
+						// Parse the buffer into char matching and digit matching
+						char char_buffer[8];
+						memcpy(char_buffer, cmd_buffer, 7);
+						char_buffer[7] = '\0';
+						char digit_buffer[1024-7];
+						memcpy(digit_buffer, &cmd_buffer[7], 1024-7);
+						
+						int digit_index = 0, isValidPeriod = 1;
+
+						// Check if first 7 chars are PERIOD=
+						if(strcmp(char_buffer, "PERIOD=") != 0){
+							isValidPeriod = 0;
+						}
+						// Check if the rest of the chars are digits
+						else{
+							while(digit_buffer[digit_index] != '\0'){
+								if(!isdigit(digit_buffer[digit_index])){
+									isValidPeriod = 0;
+									break;
+								}
+								digit_index++;
+							}
+						}
+
+						// Process the valid period
+						if(isValidPeriod){
+							if(opt_log)
+								fprintf(logfile, "%s\n", cmd_buffer);
+							opt_period = atoi(digit_buffer);
+						}
+						// Otherwise print default case error
+						else{
+							fprintf(stderr, "%s: not a valid command\n", cmd_buffer);
+							if(opt_log)
+								fprintf(logfile, "%s\n", cmd_buffer);
+						}
 					}
 
 					// Reset cmd_buffer and its index
@@ -185,7 +209,6 @@ void* check_cmd(){
 			}
 		}
 	}
-
 	return NULL;
 }
 
