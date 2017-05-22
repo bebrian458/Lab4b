@@ -5,6 +5,7 @@
 CC = gcc
 LFLAGS = -lmraa -lm -lpthread
 DEBUG =
+DIST = lab4b.c Makefile README
 
 default: lab4b
 
@@ -17,4 +18,5 @@ clean:
 	rm -f lab4b
 
 dist:
+	tar -czf lab4b-204612203.tar.gz $(DIST)
 

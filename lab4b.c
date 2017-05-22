@@ -69,6 +69,8 @@ void* check_btn(){
 
 		// Constantly check for button or OFF command
         if(mraa_gpio_read(btn) || cmd_off){
+        	if(opt_log)
+        		fprintf(logfile, "%s SHUTDOWN\n", time_disp);
             fprintf(stdout, "%s SHUTDOWN\n", time_disp);
             mraa_gpio_close(btn);
             exit(0);
@@ -79,6 +81,9 @@ void* check_btn(){
 }
 
 void* check_cmd(){
+
+	// Make sure the temperature is read once, before polling for commands
+	sleep(1);
 
 	// Initialize poll for STDIN
 	struct pollfd fds[1];
@@ -110,6 +115,15 @@ void* check_cmd(){
 			// Read the buffer one byte at a time
 			while(bytes_read > 0 && input_index < bytes_read){
 
+				// Check for EOF
+				if(input_buffer[input_index] == -1){
+					if(opt_log)
+						fprintf(logfile, "%s\n", "EOF");
+					cmd_off = 1;
+
+					// TODO: check if this is the valid EOF handling
+				}
+
 				// Check for \r and \n of input_buffer to process cmd buffer
 				if(input_buffer[input_index] == '\n'){
 
@@ -139,12 +153,15 @@ void* check_cmd(){
 						 	fprintf(logfile, "%s\n", cmd_buffer);
 						opt_scale = 'C';
 					}
-					else if(strcmp(cmd_buffer, "PERIOD=") == 0){
+					else if(strcmp(cmd_buffer, "PERIOD=1") == 0){
 						// TODO: Figure out a way to log this comand
 						// TODO: check that the first 7 char are PERIOD=
 						// TODO: check that the 8th character to \0 isdigit
 						// TODO: update opt_period
 						// NOTE: May need to combine this check with default case
+						opt_period = 1;
+						if(opt_log)
+							fprintf(logfile, "%s\n", cmd_buffer);
 					}
 					else{
 						fprintf(stderr, "%s: not a valid command\n", cmd_buffer);
