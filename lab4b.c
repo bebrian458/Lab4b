@@ -130,9 +130,11 @@ void* check_cmd(){
 
 					// Process cmd_buffer
 					if(strcmp(cmd_buffer, "OFF") == 0){
-						if(opt_log)
+						if(opt_log){
 						 	fprintf(logfile, "%s\n", cmd_buffer);
-						cmd_off = 1;
+						 	fprintf(logfile, "%s SHUTDOWN\n", time_disp);
+						}
+						exit(0);
 					}
 					else if(strcmp(cmd_buffer, "STOP") == 0){
 						if(opt_log)
